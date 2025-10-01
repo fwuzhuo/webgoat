@@ -1,0 +1,63 @@
+name: Snyk Scan
+
+on:
+  push:
+    branches:
+      - main
+    
+jobs:
+  snyk_scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Chekout code
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js (in case is needed by WebGoat)
+        uses: actions/setup-node@v3
+        with:
+          node-version: "22.20.0"
+
+      - name: Install dependencies
+        run: |
+          ./mvnw clean install -DskipTests
+
+      - name: Run Snyk Test and Save Results
+        id: snyk_test
+        env:
+          SNYK_TOKEN: ${{ secrests.SNYK_API }}
+        run: |
+          snyk test --all-projects --json > snyk-results.json || true
+          # "|| true" to not fail here yet so that output analysis can be done
+
+      - name: Analyze Snyk Test Resuslts
+        id: analyze
+        run: |
+          # Filter vulnbs by low, medium, high and critical sverity and sve them
+          cat snyk-results.json | jq '[.vulnerabilities[] | select(.severity | IN("low", "medium","high","critical"))]' > filtered-vulns.json
+          echo ""
+          echo "Filtered vulnerabilities saved!"
+          echo ""
+          # Check if any high and/or critical vulnerabilities exit
+          HIGH_COUNT=$(jq '[.[] | select(.severity=="high" or .severity=="critical")] | length' filtered-vulns.json)
+          echo ""
+          echo "danger_count = $HIGH_COUNT" >> $GITHUB_OUTPUT
+          echo ""
+
+      - name: Fail job if high/critical vulnerabilites exist
+        if: steps.analyze.outputs.danger_count > '0'
+        run: |
+          echo ""
+          echo "High or critical vulnerabilities detected! Failing the job."
+          echo ""
+          exit 1
+
+      - name: Snyk Monitor (uploda results to Snyk)
+        env:
+          SNYK_TOKEN: ${{ secrests.SNYK_API }}
+        run: snyk monitor --all-projects
+        
+
+
+
+
+          
