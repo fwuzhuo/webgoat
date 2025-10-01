@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-    
+
 jobs:
   snyk_scan:
     runs-on: ubuntu-latest
@@ -24,7 +24,7 @@ jobs:
       - name: Run Snyk Test and Save Results
         id: snyk_test
         env:
-          SNYK_TOKEN: ${{ secrets.SNYK_API }}
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         run: |
           snyk test --all-projects --json > snyk-results.json || true
           # "|| true" to not fail here yet so that output analysis can be done
@@ -53,6 +53,6 @@ jobs:
 
       - name: Snyk Monitor (uploda results to Snyk)
         env:
-          SNYK_TOKEN: ${{ secrests.SNYK_API }}
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         run: snyk monitor --all-projects
-        
+
